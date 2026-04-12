@@ -1,0 +1,17 @@
+name: WingPay Kivy Sentinel Build
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build with Buildozer
+        uses: ArtemSerebrennkov/buildozer-action@v1
+        with:
+          workdir: .
+          buildozer_version: master
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WingPay-Kivy-Sentinel-APK
+          path: bin/*.apk
