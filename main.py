@@ -89,8 +89,36 @@ class WingPaySentinel(BoxLayout):
         super().__init__(**kwargs)
         self.orientation = 'vertical'
         Window.clearcolor = (0.94, 0.95, 0.96, 1)
+        self.start_sync_listener()
 
-        # --- 1. CABECERA TÁCTICA CON BOTÓN DE PÁNICO ---
+    def start_sync_listener(self):
+        # Escucha Global Stark (ntfy.sh)
+        threading.Thread(target=self.ntfy_listener, daemon=True).start()
+
+    def ntfy_listener(self):
+        topic = "wingpay_stark_8502345704"
+        url = f"https://ntfy.sh/{topic}/json"
+        while True:
+            try:
+                import requests
+                import json
+                with requests.get(url, stream=True, timeout=60) as r:
+                    for line in r.iter_lines():
+                        if line:
+                            data = json.loads(line)
+                            if "message" in data:
+                                try:
+                                    msg_data = json.loads(data["message"])
+                                    Clock.schedule_once(lambda dt: self.inject_payment_notification(
+                                        msg_data.get("bank", "YAPE"), 
+                                        f"S/ {msg_data.get('amt', '0.00')} de {msg_data.get('name', 'Cliente')}"
+                                    ), 0)
+                                except: pass
+            except:
+                import time
+                time.sleep(10)
+
+    # --- 1. CABECERA TÁCTICA CON BOTÓN DE PÁNICO ---
         self.header = BoxLayout(size_hint_y=None, height=60, background_color=(0.03, 0.35, 0.38, 1))
         with self.header.canvas.before:
             Color(0.03, 0.35, 0.38, 1) # Verde oscuro institucional
@@ -188,7 +216,15 @@ class WingPaySentinel(BoxLayout):
         self.play_audio_alert(bank, details)
 
     def play_audio_alert(self, bank, details):
-        speech_text = f"Atención Maestro. Nuevo pago de {bank}. {details}."
+        monto = "un pago"
+        if "S/" in details:
+            parts = details.split("S/")
+            if len(parts) > 1:
+                monto = f"S/ {parts[1].split()[0]}"
+        
+        nombre = details.replace(f"por {monto}", "").replace(monto, "").replace("de", "").replace("¡Transferencia exitosa!", "").strip()
+        
+        speech_text = f"Atención. Pago recibido en {bank}. {nombre} envió {monto}."
         if tts:
             try:
                 tts.speak(speech_text)
