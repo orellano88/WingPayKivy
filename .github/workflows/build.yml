@@ -38,9 +38,6 @@ jobs:
             libavformat-dev \
             libavcodec-dev \
             zlib1g-dev \
-            libgstreamer1.0 \
-            gstreamer1.0-plugins-base \
-            gstreamer1.0-plugins-good \
             libsqlite3-dev \
             sqlite3 \
             bzip2 \
@@ -59,6 +56,10 @@ jobs:
             libxml2-dev \
             libxslt1-dev \
             libjpeg-dev \
+            libunwind-dev \
+            libgstreamer1.0-dev \
+            gstreamer1.0-plugins-base \
+            gstreamer1.0-plugins-good \
             autoconf \
             automake \
             libtool \
