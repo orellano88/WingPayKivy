@@ -85,26 +85,74 @@ class Bubble(BoxLayout):
             self.border.rounded_rectangle = (self.x, self.y, self.width, self.height, 15)
 
 class WingPaySentinel(BoxLayout):
+    status_ntfy = StringProperty("🔴") 
+    status_pc = StringProperty("⚪")
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.orientation = 'vertical'
         Window.clearcolor = (0.94, 0.95, 0.96, 1)
+        
+        # --- CABECERA TÁCTICA v38.0 ---
+        self.header = BoxLayout(size_hint_y=None, height=80, padding=10, spacing=10)
+        with self.header.canvas.before:
+            Color(0.03, 0.35, 0.38, 1)
+            RoundedRectangle(pos=self.header.pos, size=self.header.size)
+        
+        info_layout = BoxLayout(orientation='vertical')
+        title = Label(text="WING PAY SENTINEL v38.0", bold=True, font_size='16sp', halign='left')
+        title.bind(size=title.setter('text_size'))
+        self.status_lbl = Label(text=f"RED: {self.status_ntfy}  PC: {self.status_pc}", font_size='12sp', halign='left')
+        self.status_lbl.bind(size=self.status_lbl.setter('text_size'))
+        
+        # Bind status strings to the label
+        self.bind(status_ntfy=self._update_status_text, status_pc=self._update_status_text)
+        
+        info_layout.add_widget(title)
+        info_layout.add_widget(self.status_lbl)
+        
+        self.btn_panic = Button(text="🚨", background_color=(1, 0, 0, 1), size_hint_x=None, width=60, bold=True)
+        self.btn_panic.bind(on_press=self.trigger_panic)
+        
+        self.header.add_widget(info_layout)
+        self.header.add_widget(self.btn_panic)
+        self.add_widget(self.header)
+
+        # --- RESTO DE LA UI ---
+        self.scroll = ScrollView(do_scroll_x=False, padding=[10,10])
+        self.chat_list = BoxLayout(orientation='vertical', size_hint_y=None, spacing=15, padding=[10, 20])
+        self.chat_list.bind(minimum_height=self.chat_list.setter('height'))
+        self.scroll.add_widget(self.chat_list)
+        self.add_widget(self.scroll)
+
+        self.input_area = BoxLayout(size_hint_y=None, height=65, spacing=10, padding=8)
+        self.text_input = TextInput(hint_text='Escribe al Espejo...', multiline=False, size_hint_x=0.8)
+        self.send_btn = Button(text='➤', size_hint_x=0.2, background_color=(0.03, 0.75, 0.38, 1), bold=True)
+        self.send_btn.bind(on_press=self.send_action)
+        self.input_area.add_widget(self.text_input)
+        self.input_area.add_widget(self.send_btn)
+        self.add_widget(self.input_area)
+
         self.start_sync_listener()
 
+    def _update_status_text(self, *args):
+        self.status_lbl.text = f"RED: {self.status_ntfy}  PC: {self.status_pc}"
+
     def start_sync_listener(self):
-        # Escucha Global Stark (ntfy.sh)
         threading.Thread(target=self.ntfy_listener, daemon=True).start()
 
     def ntfy_listener(self):
         topic = "wingpay_stark_8502345704"
         url = f"https://ntfy.sh/{topic}/json"
+        import requests
+        import json
         while True:
             try:
-                import requests
-                import json
-                with requests.get(url, stream=True, timeout=60) as r:
+                with requests.get(url, stream=True, timeout=None) as r:
+                    self.status_ntfy = "🟢"
                     for line in r.iter_lines():
                         if line:
+                            self.status_pc = "🔵"
                             data = json.loads(line)
                             if "message" in data:
                                 try:
@@ -114,45 +162,11 @@ class WingPaySentinel(BoxLayout):
                                         f"S/ {msg_data.get('amt', '0.00')} de {msg_data.get('name', 'Cliente')}"
                                     ), 0)
                                 except: pass
+                            Clock.schedule_once(lambda dt: setattr(self, 'status_pc', "⚪"), 2)
             except:
+                self.status_ntfy = "🔴"
                 import time
-                time.sleep(10)
-
-    # --- 1. CABECERA TÁCTICA CON BOTÓN DE PÁNICO ---
-        self.header = BoxLayout(size_hint_y=None, height=60, background_color=(0.03, 0.35, 0.38, 1))
-        with self.header.canvas.before:
-            Color(0.03, 0.35, 0.38, 1) # Verde oscuro institucional
-            RoundedRectangle(pos=self.header.pos, size=self.header.size)
-        self.header.bind(pos=self.update_header, size=self.update_header)
-        
-        title = Label(text="WING PAY SENTINEL", bold=True, font_size='18sp', size_hint_x=0.8)
-        self.btn_panic = Button(text="🚨", background_color=(1, 0, 0, 1), size_hint_x=0.2, bold=True)
-        self.btn_panic.bind(on_press=self.trigger_panic)
-        
-        self.header.add_widget(title)
-        self.header.add_widget(self.btn_panic)
-        self.add_widget(self.header)
-
-        # --- 2. ZONA DE CHAT Y SCROLL ---
-        self.scroll = ScrollView(do_scroll_x=False, padding=[10,10])
-        self.chat_list = BoxLayout(orientation='vertical', size_hint_y=None, spacing=15, padding=[10, 20])
-        self.chat_list.bind(minimum_height=self.chat_list.setter('height'))
-        
-        self.scroll.add_widget(self.chat_list)
-        self.add_widget(self.scroll)
-
-        # --- 3. BARRA DE ENTRADA ---
-        self.input_area = BoxLayout(size_hint_y=None, height=60, spacing=10, padding=5)
-        self.text_input = TextInput(hint_text='Escribe al Espejo...', multiline=False, size_hint_x=0.8)
-        self.send_btn = Button(text='>', size_hint_x=0.2, background_color=(0.03, 0.75, 0.38, 1), bold=True)
-        self.send_btn.bind(on_press=self.send_action)
-
-        self.input_area.add_widget(self.text_input)
-        self.input_area.add_widget(self.send_btn)
-        self.add_widget(self.input_area)
-
-        # Iniciar Simulador de Intercepción de Notificaciones (MacroDroid Style)
-        self.start_notification_listener()
+                time.sleep(15)
 
     def update_header(self, instance, value):
         instance.canvas.before.clear()
